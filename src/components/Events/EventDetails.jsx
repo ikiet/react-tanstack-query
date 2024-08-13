@@ -5,6 +5,8 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { deleteEvent, fetchEvent, queryClient } from "../../utils/http.js";
 import LoadingIndicator from "../UI/LoadingIndicator.jsx";
 import ErrorBlock from "../UI/ErrorBlock.jsx";
+import { useState } from "react";
+import Modal from "../UI/Modal.jsx";
 
 export default function EventDetails() {
   const { id } = useParams();
@@ -14,11 +16,14 @@ export default function EventDetails() {
     queryFn: ({ signal }) => fetchEvent({ id, signal }),
   });
 
+  const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
+
   const { isPending: isDeletePending, mutate } = useMutation({
     mutationFn: deleteEvent,
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: ["events"],
+        refetchType: "none",
       });
       navigate("/events");
     },
@@ -63,8 +68,8 @@ export default function EventDetails() {
         <header>
           <h1>{data.title}</h1>
           <nav>
-            <button disabled={isDeletePending} onClick={onDelete}>
-              {isDeletePending ? "Deleting..." : "Delete"}
+            <button onClick={() => setShowDeleteConfirmModal(true)}>
+              Delete
             </button>
             <Link to="edit">Edit</Link>
           </nav>
@@ -87,6 +92,32 @@ export default function EventDetails() {
 
   return (
     <>
+      {showDeleteConfirmModal && (
+        <Modal onClose={() => setShowDeleteConfirmModal(false)}>
+          <h2>Are you sure</h2>
+          <p>
+            Do you really want to delete this event? This action cannot be
+            undone.
+          </p>
+          <div className="form-actions">
+            {isDeletePending && <p>Deleting...</p>}
+            {!isDeletePending && (
+              <>
+                <button
+                  onClick={() => setShowDeleteConfirmModal(false)}
+                  type="button"
+                  className="button-text"
+                >
+                  Cancel
+                </button>
+                <button onClick={onDelete} type="button" className="button">
+                  Delete
+                </button>
+              </>
+            )}
+          </div>
+        </Modal>
+      )}
       <Outlet />
       <Header>
         <Link to="/events" className="nav-item">
