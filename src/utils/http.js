@@ -60,7 +60,7 @@ export async function fetchSeletableImages({ signal }) {
   return images;
 }
 
-export async function fetchEvent({signal, id}) {
+export async function fetchEvent({ signal, id }) {
   const response = await fetch(`http://localhost:3000/events/${id}`, {
     signal,
   });
@@ -77,14 +77,31 @@ export async function fetchEvent({signal, id}) {
   return event;
 }
 
-export async function deleteEvent({signal, id}) {
+export async function deleteEvent({ signal, id }) {
   const response = await fetch(`http://localhost:3000/events/${id}`, {
     signal,
-    method: 'delete',
+    method: "delete",
   });
 
   if (!response.ok) {
     const error = new Error("An error occurred while delete the event");
+    error.code = response.status;
+    error.info = await response.json();
+    throw error;
+  }
+}
+
+export async function updateEvent({ event, id }) {
+  const response = await fetch(`http://localhost:3000/events/${id}`, {
+    method: "put",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ event }),
+  });
+
+  if (!response.ok) {
+    const error = new Error("An error occurred while update the event");
     error.code = response.status;
     error.info = await response.json();
     throw error;

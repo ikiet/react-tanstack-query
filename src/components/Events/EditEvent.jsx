@@ -2,10 +2,10 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 
 import Modal from "../UI/Modal.jsx";
 import EventForm from "./EventForm.jsx";
-import { fetchEvent } from "../../utils/http.js";
+import { fetchEvent, queryClient, updateEvent } from "../../utils/http.js";
 import LoadingIndicator from "../UI/LoadingIndicator.jsx";
 import ErrorBlock from "../UI/ErrorBlock.jsx";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 
 export default function EditEvent() {
   const navigate = useNavigate();
@@ -16,7 +16,36 @@ export default function EditEvent() {
     queryFn: ({ signal, queryKey }) => fetchEvent({ signal, id: queryKey[1] }),
   });
 
-  function handleSubmit(formData) {}
+  const { mutate } = useMutation({
+    mutationFn: updateEvent,
+    onMutate: async ({ event }) => {
+      await queryClient.cancelQueries({
+        queryKey: ["events", id],
+      });
+      const previousEvent = queryClient.getQueryData(["events", id]);
+      queryClient.setQueryData(["events", id], event);
+
+      return {
+        previousEvent,
+      };
+    },
+    onError: (context) => {
+      queryClient.setQueryData(["events", id], context.previousEvent);
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["events", id],
+      });
+    },
+  });
+
+  function handleSubmit(formData) {
+    mutate({
+      id,
+      event: formData,
+    });
+    navigate("../");
+  }
 
   function handleClose() {
     navigate("../");
@@ -24,7 +53,11 @@ export default function EditEvent() {
 
   let content;
   if (isPending) {
-    content = <LoadingIndicator />;
+    content = (
+      <div className="center">
+        <LoadingIndicator />
+      </div>
+    );
   }
 
   if (isError) {
@@ -37,21 +70,16 @@ export default function EditEvent() {
   }
   if (data) {
     content = (
-      <>
+      <EventForm inputData={data} onSubmit={handleSubmit}>
         <Link to="../" className="button-text">
           Cancel
         </Link>
         <button type="submit" className="button">
           Update
         </button>
-      </>
+      </EventForm>
     );
   }
 
-  return (
-    <Modal onClose={handleClose}>
-      <EventForm inputData={data} onSubmit={handleSubmit}></EventForm>
-      {content}
-    </Modal>
-  );
+  return <Modal onClose={handleClose}>{content}</Modal>;
 }
